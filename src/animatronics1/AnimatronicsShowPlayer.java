@@ -1,4 +1,4 @@
-package animatronics;
+package animatronics1;
 
 import java.util.Arrays;
 import java.util.concurrent.CyclicBarrier;
@@ -11,14 +11,11 @@ import jssc.SerialPortList;
  * @author Jared Cline
  *
  */
-public class ShowController {
+public class AnimatronicsShowPlayer {
 
 	private CyclicBarrier barrier;
 	private Player[] players;
 	private SerialPort port;
-
-	private int showStep = 0;
-	private int showLength;
 
 	/**
 	 * @param portNums
@@ -26,7 +23,7 @@ public class ShowController {
 	 * @param motorMovements
 	 *            must be same length as portNums
 	 */
-	public ShowController(byte[] portNums, byte[][] motorMovements) {
+	public AnimatronicsShowPlayer(byte[] portNums, byte[][] motorMovements) {
 		if (portNums.length != motorMovements.length)
 			System.out.println("Input arrays of different length");
 
@@ -34,7 +31,7 @@ public class ShowController {
 				// int numPlayers = portNums.length + 1;
 			int numPlayers = portNums.length;
 			players = new Player[numPlayers];
-			showLength = motorMovements[0].length;
+			// showLength = motorMovements[0].length;
 
 			/*
 			 * Create a new barrier housing the given number of motor players +

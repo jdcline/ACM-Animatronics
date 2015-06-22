@@ -1,4 +1,4 @@
-import animatronics.ShowController;
+import animatronics1.AnimatronicsShowPlayer;
 
 public class ShowControllerRunner {
 
@@ -9,7 +9,7 @@ public class ShowControllerRunner {
 			movements[0][i] = (byte) (254 - i);
 			// movements[1][i] = (byte) (254 - i);
 		}
-		new ShowController(portNums, movements);
+		new AnimatronicsShowPlayer(portNums, movements);
 
 	}
 

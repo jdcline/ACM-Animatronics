@@ -1,15 +1,24 @@
-package animatronics2;
+package showController;
 
-// This method manages all threads and timing for playback of animatronics show
-//
-// Plays a single stream of audio bytes and a single stream of servo bytes
-//   (Provides utility to take multiple byte streams for multiple servo control and interlaces them) 
-//   (designed to allow multiple audio files but not supported)
-// Manages multiple synchronized threads
-//   (Provides system clock control, which can be turned on and off, as fallback synchronization)
-// Catches interrupts and issues interrupts to clean up threads upon all sorts of errors
-// Provides callback to enable pausing and resuming a show
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CyclicBarrier;
 
+import jmcc.MicrocontrollerConnection;
+import jssc.SerialPortException;
+
+/**
+ * This method manages all threads and timing for playback of animatronics show
+ * 
+ * Plays a single stream of audio bytes and a single stream of servo bytes
+ * (Provides utility to take multiple byte streams for multiple servo control and interlaces them)
+ * (designed to allow multiple audio files but not supported)
+ * Manages multiple synchronized threads
+ * (Provides system clock control, which can be turned on and off, as fallback synchronization)
+ * Catches interrupts and issues interrupts to clean up threads upon all sorts of errors
+ * Provides callback to enable pausing and resuming a show
+ * 
+ * @author Jared
+ */
 public class AnimatronicsShowPlayer {
 	// Connection information about devices getting data - provides status about
 	// connection; formats for current protocol
@@ -53,6 +62,8 @@ public class AnimatronicsShowPlayer {
 	private boolean pausedShow = false;
 	private boolean exitShow = false;
 
+	private CyclicBarrier barrier;
+
 	public AnimatronicsShowPlayer(MicrocontrollerConnection mcm) {
 		microConnection = mcm;
 		// Default timing data (tunable and settable)
@@ -60,13 +71,7 @@ public class AnimatronicsShowPlayer {
 
 	public void playShow(String audioFile, byte[][] servoMotions) {
 		// Set start and stop positions to allow for start to finish play
-		byte[] serialDataStream = createServoMotionStream(servoMotions, 0, servoMotions[0].length); // This
-																									// is
-																									// based
-																									// on
-																									// MicrocontrollerConnection
-																									// and
-																									// TimingSettings
+		byte[] serialDataStream = createServoMotionStream(servoMotions, 0, servoMotions[0].length);
 		startSynchronizedShowTasks();
 	}
 
@@ -74,26 +79,35 @@ public class AnimatronicsShowPlayer {
 		// Set start and stop positions (to allow for beginning to end play or
 		// segment play)
 
-		byte[] serialDataStream = createServoMotionStream(servoMotions, startTime, endTime); // This
-																								// is
-																								// based
-																								// on
-																								// MicrocontrollerConnection
-																								// and
-																								// TimingSettings
+		byte[] serialDataStream = createServoMotionStream(servoMotions, startTime, endTime);
 		startSynchronizedShowTasks();
 
 	}
 
 	public void startSynchronizedShowTasks() {
 		// Create CyclicBarrier for 3 tasks threads
+		barrier = new CyclicBarrier(3, new Runnable() {
+			public void run() {
+				advanceShow();
+			}
+		});
+
 		// Audio
 		// Serial
 		// Timer
-
 	}
 
 	// Create an interleaved stream of bytes using correct protocol
+	/**
+	 * Return: byte 2n+1 = pin, byte 2n = movement
+	 * 
+	 * @param motions
+	 * @param start
+	 *            start byte number in rectangular 2d input array
+	 * @param end
+	 *            end byte number in rectangular 2d input array
+	 * @return
+	 */
 	private byte[] createServoMotionStream(byte[][] motions, int start, int end) {
 		return serialDataStream;
 		// Get correct protocol using MicrocontrollerconnectionManager
@@ -118,14 +132,63 @@ public class AnimatronicsShowPlayer {
 
 	// Inner runnable class to play audio and wait on CyclicBarrier.
 
-	// Inner runnable class to stream to Serial and wait on CyclicBarrier.
+	class ServoPlayer implements Runnable {
+
+		private int bytesPerCycle;
+		private byte[] motions;
+		private MicrocontrollerConnection mc;
+		private CyclicBarrier barrier;
+
+		/**
+		 * The time needed between movements for the motor to catch up. This time is
+		 * applied after each write, before waiting at the barrier.
+		 */
+		private final int CATCH_UP_TIME = 15;
+
+		public ServoPlayer(int bytesPerCycle, byte[] motions, MicrocontrollerConnection mc,
+				CyclicBarrier barrier) {
+			this.bytesPerCycle = bytesPerCycle;
+			this.motions = motions;
+			this.mc = mc;
+			this.barrier = barrier;
+		}
+
+		/**
+		 * @see java.lang.Runnable#run()
+		 */
+		public void run() {
+			for (int i = 0; i < bytesPerCycle; i++) {
+				try {
+					mc.setTarget(motions[showCurSerialByte + 2 * i], motions[showCurSerialByte + 1
+							+ 2 * i]);
+					Thread.sleep(CATCH_UP_TIME);
+					barrier.await();
+				} catch (SerialPortException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (BrokenBarrierException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+
+		}
+
+	}
 
 	// Inner runnable class to set Timer and wait on CyclicBarrier? Guarantees a
 	// minimum wait time
 
 	public void pauseShow() {
-		// Set isPaused flag used by advanceShow()
-
+		pausedShow = true;
+		try {
+			microConnection.closePort();
+		} catch (SerialPortException e) {
+			e.printStackTrace();
+		}
 	}
 
 	public void resumeShow() {

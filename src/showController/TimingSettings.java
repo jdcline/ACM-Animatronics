@@ -1,4 +1,4 @@
-package animatronics2;
+package showController;
 
 public class TimingSettings {
 

@@ -21,7 +21,7 @@ public class TimingSettings {
 	public void setNumServos(int numServos) {
 		this.numServos = numServos;
 
-		servoBytesPerCycle = numServos * servoFramesPerSecond * millisecondsPerCycle / 1000;
+		servoBytesPerCycle = 2 * numServos * servoFramesPerSecond * millisecondsPerCycle / 1000;
 		// - number bytes per second to go with frames per second
 		// - time of delay after each servo command
 

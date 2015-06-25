@@ -85,11 +85,17 @@ public class MicrocontrollerConnection {
 	}
 
 	private void sendSingleCommand(byte[] command) throws SerialPortException {
-		if (port.isOpened()) {
-			port.writeBytes(command);
-			this.closePort();
-		} else {
-			this.openPort();
+		if (port.isOpened())
+			try {
+				// System.out.println("Command serial: " + command[0] + " " + command[1] + " "
+				// + command[2]);
+				port.writeBytes(command);
+			} catch (SerialPortException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		else {
+			port.openPort();
 			sendSingleCommand(command);
 		}
 

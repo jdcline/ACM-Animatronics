@@ -75,7 +75,7 @@ public class AnimatronicsShowPlayer {
 	/**
 	 * Audio, Serial, and Timer
 	 */
-	private int numBarrierThreads = 2;
+	private int numBarrierThreads = 3;
 
 	private Thread servoThread, audioThread, timerThread;
 

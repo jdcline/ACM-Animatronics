@@ -22,7 +22,7 @@ public class ShowPlayerTest {
 		MicrocontrollerConnection mc = new MicrocontrollerConnection();
 		SerialFileReader serialReader = new SerialFileReader();
 
-		AnimatronicsShowPlayer player = new AnimatronicsShowPlayer(mc);
+		AnimatronicsShowPlayer player = new AnimatronicsShowPlayer(mc, 30, 30);
 		byte[][] servoMotions;
 		try {
 			servoMotions = serialReader.getBytes("data/TalkSlowly30FPS.csv", 1);

@@ -79,11 +79,18 @@ public class AnimatronicsShowPlayer {
 
 	private Thread servoThread, audioThread, timerThread;
 
-	private static final int AUDIO_BUFFER_SIZE = 32000;
+	private long prevCycleTime;
 
-	public AnimatronicsShowPlayer(MicrocontrollerConnection mcm) {
+	private ServoPlayer servo;
+
+	private Timer timer;
+
+	private AudioPlayer audio;
+
+	public AnimatronicsShowPlayer(MicrocontrollerConnection mcm, int servoFramesPerSecond,
+			int cyclesPerSecond) {
 		microConnection = mcm;
-		timingSettings = new TimingSettings(30, 50);
+		timingSettings = new TimingSettings(servoFramesPerSecond, cyclesPerSecond);
 	}
 
 	public void playShow(String audioFile, int[] pinNumbers, byte[][] servoMotions) {
@@ -91,7 +98,7 @@ public class AnimatronicsShowPlayer {
 		try {
 			serialDataStream = createServoMotionStream(pinNumbers, servoMotions, 0,
 					servoMotions[0].length);
-			startSynchronizedShowTasks(audioFile);
+			startSynchronizedShowTasks(audioFile, servoMotions.length);
 		} catch (SerialPortException e1) {
 			e1.printStackTrace();
 		} catch (Exception e) {
@@ -108,7 +115,7 @@ public class AnimatronicsShowPlayer {
 
 		try {
 			serialDataStream = createServoMotionStream(pinNumbers, servoMotions, startTime, endTime);
-			startSynchronizedShowTasks(audioFile);
+			startSynchronizedShowTasks(audioFile, servoMotions.length);
 		} catch (SerialPortException e1) {
 			e1.printStackTrace();
 		} catch (Exception e) {
@@ -118,7 +125,8 @@ public class AnimatronicsShowPlayer {
 
 	}
 
-	public void startSynchronizedShowTasks(String audioFile) throws SerialPortException {
+	public void startSynchronizedShowTasks(String audioFile, int numServos)
+			throws SerialPortException {
 		barrier = new CyclicBarrier(numBarrierThreads, new Runnable() {
 			public void run() {
 				advanceShow();
@@ -126,12 +134,13 @@ public class AnimatronicsShowPlayer {
 		});
 
 		microConnection.openPort();
-		ServoPlayer servo = new ServoPlayer(timingSettings.getServoBytesPerCycle(),
+		servo = new ServoPlayer(timingSettings.getServoFramesPerCycle() * numServos,
 				serialDataStream, microConnection, barrier);
 
-		Timer timer = new Timer(timingSettings.getMillisecondsPerCycle(), barrier);
+		timer = new Timer(timingSettings.getCyclesPerSecond(), barrier);
 
-		AudioPlayer audio = new AudioPlayer(barrier);
+		audio = new AudioPlayer(barrier, timingSettings.getAudioBytesPerCycle());
+		prevCycleTime = System.currentTimeMillis();
 
 		servoThread = new Thread(servo);
 		servoThread.start();
@@ -180,9 +189,6 @@ public class AnimatronicsShowPlayer {
 				}
 			}
 
-			// adjust timing data based on number of servos
-			timingSettings.setNumServos(pinNumbers.length);
-
 			// Set start and stop positions (to allow for beginning to end play or
 			// segment play)
 
@@ -195,26 +201,35 @@ public class AnimatronicsShowPlayer {
 	private void advanceShow() {
 		if (!pausedShow) {
 			// Advance pointers through servo byte array
-			showCurSerialByte += timingSettings.getServoBytesPerCycle() * 2;
-			showCurAudioByte += AUDIO_BUFFER_SIZE;
+			showCurSerialByte += servo.getBytesPerCycle();
+			showCurAudioByte += timingSettings.getAudioBytesPerCycle();
 
 			// Note: servoBytesPerCycle should be a factor of serialDataStream
-			if (showCurSerialByte + timingSettings.getServoBytesPerCycle() * 2 > serialDataStream.length) {
+			if (showCurSerialByte + servo.getBytesPerCycle() > serialDataStream.length) {
+				servo.setBytesPerCycle(serialDataStream.length - showCurSerialByte);
+			}
+			if (showCurSerialByte == serialDataStream.length) {
 				exitShow = true;
 			}
+		} else {
+			System.out.println("flush");
+			audio.audioLine.flush();
 		}
 		// Might not be a bad idea to gather some stats using system time
+		System.out.println("Cycle Time (millis):" + (System.currentTimeMillis() - prevCycleTime));
+		prevCycleTime = System.currentTimeMillis();
 	}
 
 	class AudioPlayer implements Runnable {
-		private byte[] bytesBuffer = new byte[AnimatronicsShowPlayer.AUDIO_BUFFER_SIZE];
+		private byte[] bytesBuffer;// = new byte[AnimatronicsShowPlayer.AUDIO_BUFFER_SIZE];
 		private int bytesRead = -1;
 		private AudioInputStream audioStream;
 		private SourceDataLine audioLine;
 		private CyclicBarrier barrier;
 
-		public AudioPlayer(CyclicBarrier barrier) {
+		public AudioPlayer(CyclicBarrier barrier, int bufferSize) {
 			this.barrier = barrier;
+			bytesBuffer = new byte[bufferSize];
 		}
 
 		/**
@@ -271,14 +286,8 @@ public class AnimatronicsShowPlayer {
 			try {
 				while ((bytesRead = audioStream.read(bytesBuffer)) != -1) {
 					audioLine.write(bytesBuffer, 0, bytesRead);
-					// audioLine.flush();
-					System.out.println(bytesRead);
+					System.out.println("Audio at barrier");
 					barrier.await();
-
-					// synchronized (audioLine) {
-					// audioLine.wait(50);
-					// }
-
 				}
 			} catch (IOException ex) {
 				System.out.println("Error playing the audio file.");
@@ -295,20 +304,17 @@ public class AnimatronicsShowPlayer {
 
 	class ServoPlayer implements Runnable {
 
+		/**
+		 * Excludes counting signal bytes
+		 */
 		private int bytesPerCycle;
 		private byte[] motions;
 		private MicrocontrollerConnection mc;
 		private CyclicBarrier barrier;
 
-		/**
-		 * The time needed between movements for the motor to catch up. This time is
-		 * applied after each write, before waiting at the barrier.
-		 */
-		private final int CATCH_UP_TIME = 15;
-
-		public ServoPlayer(int bytesPerCycle, byte[] serialDataStream,
+		public ServoPlayer(int motionsPerCycle, byte[] serialDataStream,
 				MicrocontrollerConnection mc, CyclicBarrier barrier) {
-			this.bytesPerCycle = bytesPerCycle * 2;
+			this.bytesPerCycle = motionsPerCycle * 2;
 			this.motions = serialDataStream;
 			this.mc = mc;
 			this.barrier = barrier;
@@ -323,16 +329,14 @@ public class AnimatronicsShowPlayer {
 					try {
 						mc.setTarget(motions[showCurSerialByte + i], motions[showCurSerialByte + i
 								+ 1]);
-						Thread.sleep(CATCH_UP_TIME);
 					} catch (SerialPortException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
 					}
+
 				}
 				try {
+					System.out.println("Servo at barrier");
 					barrier.await();
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
@@ -345,15 +349,30 @@ public class AnimatronicsShowPlayer {
 			}
 		}
 
+		/**
+		 * @return the bytesPerCycle
+		 */
+		public int getBytesPerCycle() {
+			return bytesPerCycle;
+		}
+
+		/**
+		 * @param bytesPerCycle
+		 *            the bytesPerCycle to set
+		 */
+		public void setBytesPerCycle(int bytesPerCycle) {
+			this.bytesPerCycle = bytesPerCycle;
+		}
+
 	}
 
 	class Timer implements Runnable {
 
-		private int millisecondsWait;
+		private int millisecondsWait = 0;
 		private CyclicBarrier barrier;
 
-		public Timer(int millisecondsWait, CyclicBarrier barrier) {
-			this.millisecondsWait = millisecondsWait;
+		public Timer(int cyclesPerSecond, CyclicBarrier barrier) {
+			// this.millisecondsWait = 1000 / cyclesPerSecond;
 			this.barrier = barrier;
 		}
 
@@ -361,6 +380,7 @@ public class AnimatronicsShowPlayer {
 			while (!exitShow) {
 				try {
 					Thread.sleep(millisecondsWait);
+					System.out.println("Timer at barrier");
 					barrier.await();
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block

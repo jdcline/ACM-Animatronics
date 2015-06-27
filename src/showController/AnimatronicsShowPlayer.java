@@ -202,18 +202,22 @@ public class AnimatronicsShowPlayer {
 		if (!pausedShow) {
 			// Advance pointers through servo byte array
 			showCurSerialByte += servo.getBytesPerCycle();
-			showCurAudioByte += timingSettings.getAudioBytesPerCycle();
+			showCurAudioByte += audio.getBytesRead();
+			System.out.println(showCurSerialByte + "," + showCurAudioByte);
 
 			// Note: servoBytesPerCycle should be a factor of serialDataStream
+			System.out.println(showCurSerialByte + "," + servo.getBytesPerCycle() + ","
+					+ serialDataStream.length);
 			if (showCurSerialByte + servo.getBytesPerCycle() > serialDataStream.length) {
 				servo.setBytesPerCycle(serialDataStream.length - showCurSerialByte);
 			}
-			if (showCurSerialByte == serialDataStream.length) {
+			if (audio.getAudioExitFlag() || servo.getServoExitFlag()) {
+				System.out.println("Exit Show");
 				exitShow = true;
+				servoThread.interrupt();
+				audioThread.interrupt();
+				timerThread.interrupt();
 			}
-		} else {
-			System.out.println("flush");
-			audio.audioLine.flush();
 		}
 		// Might not be a bad idea to gather some stats using system time
 		System.out.println("Cycle Time (millis):" + (System.currentTimeMillis() - prevCycleTime));
@@ -226,6 +230,7 @@ public class AnimatronicsShowPlayer {
 		private AudioInputStream audioStream;
 		private SourceDataLine audioLine;
 		private CyclicBarrier barrier;
+		private boolean audioExitFlag = false;
 
 		public AudioPlayer(CyclicBarrier barrier, int bufferSize) {
 			this.barrier = barrier;
@@ -299,7 +304,25 @@ public class AnimatronicsShowPlayer {
 				e.printStackTrace();
 			}
 
+			this.audioExitFlag = true;
+			this.stop();
+
 		}
+
+		/**
+		 * @return the totalBytesRead
+		 */
+		public int getBytesRead() {
+			return bytesRead;
+		}
+
+		/**
+		 * @return the audioExitFlag
+		 */
+		public Boolean getAudioExitFlag() {
+			return audioExitFlag;
+		}
+
 	}
 
 	class ServoPlayer implements Runnable {
@@ -311,6 +334,7 @@ public class AnimatronicsShowPlayer {
 		private byte[] motions;
 		private MicrocontrollerConnection mc;
 		private CyclicBarrier barrier;
+		private boolean servoExitFlag = false;
 
 		public ServoPlayer(int motionsPerCycle, byte[] serialDataStream,
 				MicrocontrollerConnection mc, CyclicBarrier barrier) {
@@ -324,29 +348,39 @@ public class AnimatronicsShowPlayer {
 		 * @see java.lang.Runnable#run()
 		 */
 		public void run() {
-			while (!exitShow) {
-				for (int i = 0; i < bytesPerCycle; i += 2) {
+			try {
+				while (showCurSerialByte < motions.length) {
+					for (int i = 0; i < bytesPerCycle; i += 2) {
+
+						mc.setTarget(motions[showCurSerialByte + i], motions[showCurSerialByte + i
+								+ 1]);
+					}
+
+					System.out.println("Servo at barrier");
+					barrier.await();
+				}
+				servoExitFlag = true;
+			} catch (SerialPortException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+			catch (InterruptedException e) {
+				for (int i = 0; i < motions.length - showCurSerialByte; i += 2) {
+
 					try {
 						mc.setTarget(motions[showCurSerialByte + i], motions[showCurSerialByte + i
 								+ 1]);
-					} catch (SerialPortException e) {
+					} catch (SerialPortException e1) {
 						// TODO Auto-generated catch block
-						e.printStackTrace();
+						e1.printStackTrace();
 					}
-
 				}
-				try {
-					System.out.println("Servo at barrier");
-					barrier.await();
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (BrokenBarrierException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-
+			} catch (BrokenBarrierException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
+
 		}
 
 		/**
@@ -362,6 +396,13 @@ public class AnimatronicsShowPlayer {
 		 */
 		public void setBytesPerCycle(int bytesPerCycle) {
 			this.bytesPerCycle = bytesPerCycle;
+		}
+
+		/**
+		 * @return the servoExitFlag
+		 */
+		public Boolean getServoExitFlag() {
+			return servoExitFlag;
 		}
 
 	}
@@ -384,7 +425,7 @@ public class AnimatronicsShowPlayer {
 					barrier.await();
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
-					e.printStackTrace();
+					System.out.println("timer interrupted");
 				} catch (BrokenBarrierException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();

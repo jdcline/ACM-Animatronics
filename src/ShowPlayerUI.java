@@ -29,6 +29,8 @@ public class ShowPlayerUI extends JFrame implements ActionListener {
 	JButton pauseButton;
 	JButton resumeButton;
 
+	JLabel message;
+
 	AnimatronicsShowPlayer show;
 
 	ShowPlayerUI(AnimatronicsShowPlayer player) {
@@ -37,14 +39,16 @@ public class ShowPlayerUI extends JFrame implements ActionListener {
 
 		this.setLayout(new FlowLayout());
 		this.setVisible(true);
-		this.setSize(600, 200);
+		this.setSize(400, 200);
 
 		// Create a component
 		audioLabel = new JLabel("AudioFile:");
-		audioFile = new JTextField("Pop.wav");
+		// audioFile = new JTextField("data/Pop.wav");
+		audioFile = new JTextField("data/WatchMyMouthMove.wav");
 
 		motionLabel = new JLabel("MotionFile:");
-		motionFile = new JTextField("Pop30FPS.csv");
+		// motionFile = new JTextField("data/Pop30FPS.txt");
+		motionFile = new JTextField("data/WatchMyMouthMove30FPS.txt");
 
 		playButton = new JButton("PLAY");
 		playButton.addActionListener(this);
@@ -62,6 +66,8 @@ public class ShowPlayerUI extends JFrame implements ActionListener {
 		resumeButton.addActionListener(this);
 		resumeButton.setActionCommand("RESUME");
 
+		message = new JLabel("messages");
+
 		this.add(audioLabel); // Add component
 		this.add(audioFile);
 		this.add(motionLabel);
@@ -70,17 +76,11 @@ public class ShowPlayerUI extends JFrame implements ActionListener {
 		this.add(stopButton);
 		this.add(pauseButton);
 		this.add(resumeButton);
-
-		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		this.add(message);
 
 		this.validate();
+		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-	}
-
-	public static void main(String args[]) {
-		MicrocontrollerConnection mc = new MicrocontrollerConnection();
-		AnimatronicsShowPlayer player = new AnimatronicsShowPlayer(mc, 30, 30);
-		new ShowPlayerUI(player);
 	}
 
 	@Override
@@ -92,27 +92,43 @@ public class ShowPlayerUI extends JFrame implements ActionListener {
 			int[] pins = { 2 };
 			byte[][] motions = new byte[1][];
 			try {
-				motions = AnimatronicsUtilities.readBytesMultipleServo(
-						"data/" + motionFile.getText(), 1);
+				motions = AnimatronicsUtilities.readBytesMultipleServo(motionFile.getText(), 1);
+				message.setText("playing show..." + motions[0].length);
+				show.playShow(audioFile.getText(), pins, motions);
+
 			} catch (FileNotFoundException e1) {
 				// TODO Auto-generated catch block
-				e1.printStackTrace();
+				// e1.printStackTrace();
+				message.setText("File not found" + e1.getMessage());
+			} catch (Exception e2) {
+				message.setText("Error: " + e2.getMessage());
 			}
-			show.playShow("data/" + audioFile.getText(), pins, motions);
+
+			System.out.println("play");
+			System.out.println("Files:" + audioFile.getText() + " " + motionFile.getText());
 		}
 
 		else if (action.equals("STOP")) {
 			show.stopShow();
+			message.setText("stopping show...");
 		}
 
 		else if (action.equals("PAUSE")) {
 			show.pauseShow();
+			message.setText("pausing show...");
 		}
 
 		else if (action.equals("RESUME")) {
 			show.resumeShow();
+			message.setText("resuming show...");
 		}
 
+	}
+
+	public static void main(String args[]) {
+		MicrocontrollerConnection mc = new MicrocontrollerConnection();
+		AnimatronicsShowPlayer player = new AnimatronicsShowPlayer(mc, 30, 30);
+		new ShowPlayerUI(player);
 	}
 
 }

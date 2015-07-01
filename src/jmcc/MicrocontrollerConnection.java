@@ -49,7 +49,7 @@ public class MicrocontrollerConnection {
 	}
 
 	// For testing that the correct COM port was selected
-	public boolean verifyPort(String portName) {
+	public boolean verifyPort() {
 		// this.port = new SerialPort(portName);
 		// Open
 		// verify connection

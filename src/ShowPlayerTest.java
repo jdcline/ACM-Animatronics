@@ -2,6 +2,7 @@ import java.io.FileNotFoundException;
 
 import jmcc.MicrocontrollerConnection;
 import showController.AnimatronicsShowPlayer;
+import showController.AnimatronicsUtilities;
 
 /**
  * 
@@ -25,7 +26,8 @@ public class ShowPlayerTest {
 		AnimatronicsShowPlayer player = new AnimatronicsShowPlayer(mc, 30, 30);
 		byte[][] servoMotions;
 		try {
-			servoMotions = serialReader.getBytes("data/TalkSlowly30FPS.csv", 1);
+			servoMotions = AnimatronicsUtilities.readBytesMultipleServo("data/TalkSlowly30FPS.csv",
+					1);
 			player.playShow("data/TalkSlowly.wav", new int[] { 2 }, servoMotions);
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block

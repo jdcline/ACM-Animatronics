@@ -11,6 +11,8 @@ import javax.swing.JTextField;
 import jmcc.MicrocontrollerConnection;
 import showController.AnimatronicsShowPlayer;
 import showController.AnimatronicsUtilities;
+import showController.FormattedShowData;
+import showController.PlayerInputs;
 
 public class ShowPlayerUI extends JFrame implements ActionListener {
 
@@ -44,11 +46,11 @@ public class ShowPlayerUI extends JFrame implements ActionListener {
 		// Create a component
 		audioLabel = new JLabel("AudioFile:");
 		// audioFile = new JTextField("data/Pop.wav");
-		audioFile = new JTextField("data/WatchMyMouthMove.wav");
+		audioFile = new JTextField("data/AlpacaOESISDemo.wav");
 
 		motionLabel = new JLabel("MotionFile:");
 		// motionFile = new JTextField("data/Pop30FPS.txt");
-		motionFile = new JTextField("data/WatchMyMouthMove30FPS.txt");
+		motionFile = new JTextField("data/AlpacaOESISDemo2motor.csv");
 
 		playButton = new JButton("PLAY");
 		playButton.addActionListener(this);
@@ -89,12 +91,12 @@ public class ShowPlayerUI extends JFrame implements ActionListener {
 		String action = e.getActionCommand();
 
 		if (action.equals("PLAY")) {
-			int[] pins = { 2 };
-			byte[][] motions = new byte[1][];
+			int[] pins = { 2, 3 };
+			byte[][] motions;
 			try {
-				motions = AnimatronicsUtilities.readBytesMultipleServo(motionFile.getText(), 1);
+				motions = AnimatronicsUtilities.readBytesMultipleServo(motionFile.getText(), 2);
 				message.setText("playing show..." + motions[0].length);
-				show.playShow(audioFile.getText(), pins, motions);
+				show.playShow(new FormattedShowData(audioFile.getText(), pins, motions));
 
 			} catch (FileNotFoundException e1) {
 				// TODO Auto-generated catch block
@@ -126,9 +128,17 @@ public class ShowPlayerUI extends JFrame implements ActionListener {
 	}
 
 	public static void main(String args[]) {
-		MicrocontrollerConnection mc = new MicrocontrollerConnection();
-		AnimatronicsShowPlayer player = new AnimatronicsShowPlayer(mc, 30, 30);
-		new ShowPlayerUI(player);
+		try {
+			MicrocontrollerConnection mc = new MicrocontrollerConnection();
+			PlayerInputs inputs = new PlayerInputs(mc, 30, 30);
+			AnimatronicsShowPlayer player;
+			player = new AnimatronicsShowPlayer(inputs);
+			new ShowPlayerUI(player);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
 	}
 
 }

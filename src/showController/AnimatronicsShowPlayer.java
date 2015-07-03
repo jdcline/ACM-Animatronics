@@ -2,10 +2,12 @@ package showController;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
 import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioFormat.Encoding;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
@@ -31,7 +33,7 @@ import jssc.SerialPortException;
  * @author Jared
  */
 public class AnimatronicsShowPlayer {
-	public static final long MAX_SHOW_LENGTH = 2147483647;
+	public static final int MAX_SHOW_LENGTH = Integer.MAX_VALUE;
 
 	// Connection information about devices getting data - provides status about
 	// connection; formats for current protocol
@@ -74,9 +76,9 @@ public class AnimatronicsShowPlayer {
 
 	private CyclicBarrier barrier;
 	/**
-	 * Audio, Serial, and Timer
+	 * Audio, Serial, Timer, and Recorded Audio
 	 */
-	private int numBarrierThreads = 3;
+	private int numBarrierThreads = 4;
 
 	private Thread servoThread, audioThread, timerThread;
 
@@ -88,37 +90,31 @@ public class AnimatronicsShowPlayer {
 
 	private AudioPlayer audio;
 
-	public AnimatronicsShowPlayer(MicrocontrollerConnection mcm, int servoFramesPerSecond,
-			int cyclesPerSecond) {
-		microConnection = mcm;
-		timingSettings = new TimingSettings(servoFramesPerSecond, cyclesPerSecond);
+	private ArrayList<Byte> recordedInputBuffer = new ArrayList<Byte>(100000);
+
+	private RecordedAudioPlayer recordedAudio;
+
+	private Thread recordedAudioThread;
+
+	public AnimatronicsShowPlayer(PlayerInputs inputs) {
+		microConnection = inputs.getMc();
+		timingSettings = new TimingSettings(inputs.getServoFramesPerSecond(),
+				inputs.getCyclesPerSecond());
 	}
 
-	public void playShow(String audioFile, int[] pinNumbers, byte[][] servoMotions) {
-		// Set start and stop positions to allow for start to finish play
-		try {
-			exitShow = false;
-			serialDataStream = createServoMotionStream(pinNumbers, servoMotions, 0,
-					servoMotions[0].length);
-			startSynchronizedShowTasks(audioFile, servoMotions.length, 0, MAX_SHOW_LENGTH);
-		} catch (SerialPortException e1) {
-			e1.printStackTrace();
-		} catch (Exception e) {
-			// Array mismatch
-			e.printStackTrace();
-		}
-
+	public void playShow(FormattedShowData data) {
+		playShow(data, 0, MAX_SHOW_LENGTH);
 	}
 
-	public void playShow(String audioFile, int[] pinNumbers, byte[][] servoMotions, int startTime,
-			int endTime) {
+	public void playShow(FormattedShowData data, long startTime, long endTime) {
 		// Set start and stop positions (to allow for beginning to end play or
 		// segment play)
 
 		try {
 			exitShow = false;
-			serialDataStream = createServoMotionStream(pinNumbers, servoMotions, startTime, endTime);
-			startSynchronizedShowTasks(audioFile, servoMotions.length, startTime, endTime);
+			serialDataStream = createServoMotionStream(data.getPinNumbers(), data.getServoMotions());
+			startSynchronizedShowTasks(data.getAudioFile(), data.getServoMotions().length,
+					startTime, endTime);
 		} catch (SerialPortException e1) {
 			e1.printStackTrace();
 		} catch (Exception e) {
@@ -128,8 +124,9 @@ public class AnimatronicsShowPlayer {
 
 	}
 
-	public void startSynchronizedShowTasks(String audioFile, int numServos, int startTime,
-			long maxShowLength) throws SerialPortException {
+	public void startSynchronizedShowTasks(String audioFile, int numServos, long startTime,
+			long endTime) throws SerialPortException {
+
 		barrier = new CyclicBarrier(numBarrierThreads, new Runnable() {
 			public void run() {
 				if (!(audio.getAudioExitFlag() && servo.getServoExitFlag()) && !exitShow) {
@@ -158,23 +155,29 @@ public class AnimatronicsShowPlayer {
 		});
 
 		servo = new ServoPlayer(timingSettings.getServoFramesPerCycle() * numServos,
-				serialDataStream, microConnection, barrier, startTime
-						* timingSettings.getServoFramesPerSecond() / 1000, maxShowLength
+				serialDataStream, microConnection, barrier, (int) (startTime
+						* timingSettings.getServoFramesPerSecond() / 1000), endTime
 						* timingSettings.getServoFramesPerSecond() / 1000);
-
 		timer = new Timer(timingSettings.getCyclesPerSecond(), barrier);
-
 		audio = new AudioPlayer(barrier, timingSettings.getAudioBytesPerCycle());
+		recordedAudio = new RecordedAudioPlayer(barrier, timingSettings.getAudioBytesPerCycle());
+
 		prevCycleTime = System.currentTimeMillis();
 
 		servoThread = new Thread(servo);
 		servoThread.start();
+
 		timerThread = new Thread(timer);
 		timerThread.start();
-		audio.play(audioFile, startTime * timingSettings.getAudioBytesPerSecond() / 1000,
-				maxShowLength * timingSettings.getAudioBytesPerSecond() / 1000);
+
+		audio.play(audioFile, (int) (startTime * timingSettings.getAudioBytesPerSecond() / 1000),
+				endTime * timingSettings.getAudioBytesPerSecond() / 1000);
 		audioThread = new Thread(audio);
 		audioThread.start();
+
+		recordedAudio.play();
+		recordedAudioThread = new Thread(recordedAudio);
+		recordedAudioThread.start();
 
 	}
 
@@ -191,35 +194,22 @@ public class AnimatronicsShowPlayer {
 	 * @param end
 	 *            end byte number in rectangular 2d input array
 	 * @return
-	 * @throws Exception
-	 *             if the length of pinNumbers does not equal the length of motions or if motions is not rectangular
 	 */
-	private byte[] createServoMotionStream(int[] pinNumbers, byte[][] motions, int start, int end)
-			throws Exception {
-		boolean isRectangular = true;
-		for (int i = 1; i < motions.length; i++) {
-			if (motions[i].length != motions[i - 1].length)
-				isRectangular = false;
-		}
+	private byte[] createServoMotionStream(int[] pinNumbers, byte[][] motions) {
 
-		if (pinNumbers.length != motions.length || !isRectangular)
-			throw new Exception("Input Array Error");
-
-		else {
-			byte[] returnArray = new byte[2 * motions.length * motions[0].length];
-			// Interleave bytes
-			for (int j = 0; j < motions[0].length; j++) {
-				for (int i = 0; i < motions.length; i++) {
-					returnArray[2 * (j * motions.length + i)] = (byte) pinNumbers[i];
-					returnArray[2 * (j * motions.length + i) + 1] = motions[i][j];
-				}
+		byte[] returnArray = new byte[2 * motions.length * motions[0].length];
+		// Interleave bytes
+		for (int j = 0; j < motions[0].length; j++) {
+			for (int i = 0; i < motions.length; i++) {
+				returnArray[2 * (j * motions.length + i)] = (byte) pinNumbers[i];
+				returnArray[2 * (j * motions.length + i) + 1] = motions[i][j];
 			}
-
-			// Set start and stop positions (to allow for beginning to end play or
-			// segment play)
-
-			return returnArray;
 		}
+
+		// Set start and stop positions (to allow for beginning to end play or
+		// segment play)
+
+		return returnArray;
 
 	}
 
@@ -247,6 +237,96 @@ public class AnimatronicsShowPlayer {
 		prevCycleTime = System.currentTimeMillis();
 	}
 
+	class RecordedAudioPlayer implements Runnable {
+		private byte[] bytesBuffer;
+		private int bytesRead = -1;
+		private SourceDataLine audioLine;
+		private CyclicBarrier barrier;
+		private boolean runSwitch = true;
+		private boolean hasRecordedAudio = false;
+
+		public RecordedAudioPlayer(CyclicBarrier barrier, int bufferSize) {
+			this.barrier = barrier;
+			bytesBuffer = new byte[bufferSize];
+		}
+
+		/**
+		 * Play a given audio file.
+		 * 
+		 * @param audioFilePath
+		 *            Path of the audio file.
+		 */
+		void play() {
+
+			try {
+
+				AudioFormat format = new AudioFormat(Encoding.PCM_SIGNED, 44100.0F, 16, 2, 4,
+						44100.0F, false);
+				DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
+				audioLine = (SourceDataLine) AudioSystem.getLine(info);
+				audioLine.open(format);
+				audioLine.start();
+
+			} catch (LineUnavailableException ex) {
+				System.out.println("Audio line for playing back is unavailable.");
+				ex.printStackTrace();
+			}
+		}
+
+		void stop() {
+			runSwitch = false;
+			audioLine.drain();
+			audioLine.close();
+
+		}
+
+		@Override
+		public void run() {
+			try {
+				while (runSwitch) {
+					while (runSwitch && hasRecordedAudio) {
+						fillBytesBuffer();
+						audioLine.write(bytesBuffer, 0, bytesBuffer.length);
+						clearRecordedInput();
+						barrier.await();
+					}
+					barrier.await();
+				}
+			} catch (InterruptedException e) {
+				System.out.println("interrupted");
+			} catch (BrokenBarrierException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+		}
+
+		private void clearRecordedInput() {
+			for (int i = 0; i < bytesRead; i++) {
+				recordedInputBuffer.remove(0);
+			}
+		}
+
+		private void fillBytesBuffer() {
+			if (!recordedInputBuffer.isEmpty()) {
+				Byte[] temp = null;
+				temp = recordedInputBuffer.toArray(temp);
+				bytesRead = Math.min(temp.length, bytesBuffer.length);
+
+				for (int i = 0; i < bytesRead; i++) {
+					bytesBuffer[i] = temp[i];
+				}
+			} else
+				bytesRead = 0;
+		}
+
+		public void setRecordedAudioInput(boolean b) {
+			hasRecordedAudio = b;
+
+		}
+
+	}
+
 	class AudioPlayer implements Runnable {
 		private byte[] bytesBuffer;
 		private int bytesRead = -1;
@@ -257,6 +337,7 @@ public class AnimatronicsShowPlayer {
 		private boolean runSwitch = true;
 		private int curByte = 0;
 		private long endingByte;
+		private boolean hasAudio = false;
 
 		public AudioPlayer(CyclicBarrier barrier, int bufferSize) {
 			this.barrier = barrier;
@@ -289,6 +370,7 @@ public class AnimatronicsShowPlayer {
 
 				audioLine.start();
 
+				hasAudio = true;
 				System.out.println("Playback started.");
 
 			} catch (UnsupportedAudioFileException ex) {
@@ -303,12 +385,14 @@ public class AnimatronicsShowPlayer {
 			}
 		}
 
-		public void stop() {
+		void stop() {
 			try {
 				runSwitch = false;
-				audioLine.drain();
-				audioLine.close();
-				audioStream.close();
+				if (hasAudio) {
+					audioLine.drain();
+					audioLine.close();
+					audioStream.close();
+				}
 
 				System.out.println("Playback completed.");
 			} catch (IOException ex) {
@@ -321,7 +405,8 @@ public class AnimatronicsShowPlayer {
 		public void run() {
 			try {
 				while (runSwitch) {
-					while (runSwitch && (bytesRead = audioStream.read(bytesBuffer)) != -1
+					while (hasAudio && runSwitch
+							&& (bytesRead = audioStream.read(bytesBuffer)) != -1
 							&& curByte < endingByte) {
 						if (curByte + bytesRead > endingByte)
 							bytesRead = (int) (endingByte - curByte);
@@ -347,14 +432,14 @@ public class AnimatronicsShowPlayer {
 		/**
 		 * @return the audioExitFlag
 		 */
-		public Boolean getAudioExitFlag() {
+		Boolean getAudioExitFlag() {
 			return audioExitFlag;
 		}
 
 		/**
 		 * @return the curByte
 		 */
-		public int getCurByte() {
+		int getCurByte() {
 			return curByte;
 		}
 
@@ -382,13 +467,13 @@ public class AnimatronicsShowPlayer {
 			this.motions = serialDataStream;
 			this.mc = mc;
 			this.barrier = barrier;
-			this.endingByte = (int) (endingMotion * bytesPerPacket);
+			this.endingByte = (int) endingMotion * bytesPerPacket;
 			curByte += motionsToSkip * bytesPerPacket;
 
 			mc.openPort();
 		}
 
-		public void stop() throws SerialPortException {
+		void stop() throws SerialPortException {
 			runSwitch = false;
 			mc.closePort();
 		}
@@ -408,10 +493,9 @@ public class AnimatronicsShowPlayer {
 						else if (curByte + bytesPerCycle > endingByte)
 							setBytesPerCycle(endingByte - curByte);
 
-						// Thread.sleep(500);
-
 						for (int i = 0; i < bytesPerCycle; i += 2) {
 							mc.setTarget(motions[curByte + i], motions[curByte + i + 1]);
+							Thread.sleep(5);
 						}
 						curByte += bytesPerCycle;
 						barrier.await();
@@ -446,7 +530,7 @@ public class AnimatronicsShowPlayer {
 		/**
 		 * @return the bytesPerCycle
 		 */
-		public int getBytesPerCycle() {
+		int getBytesPerCycle() {
 			return bytesPerCycle;
 		}
 
@@ -454,21 +538,21 @@ public class AnimatronicsShowPlayer {
 		 * @param bytesPerCycle
 		 *            the bytesPerCycle to set
 		 */
-		public void setBytesPerCycle(int bytesPerCycle) {
+		void setBytesPerCycle(int bytesPerCycle) {
 			this.bytesPerCycle = bytesPerCycle;
 		}
 
 		/**
 		 * @return the servoExitFlag
 		 */
-		public Boolean getServoExitFlag() {
+		Boolean getServoExitFlag() {
 			return servoExitFlag;
 		}
 
 		/**
 		 * @return the curByte
 		 */
-		public int getCurByte() {
+		int getCurByte() {
 			return curByte;
 		}
 
@@ -520,6 +604,18 @@ public class AnimatronicsShowPlayer {
 	public void stopShow() {
 		exitShow = true;
 
+	}
+
+	/**
+	 * Show input must come in at 44,100 Hz, stereo audio at 16 bits per channel
+	 * 
+	 * @param input
+	 */
+	public void addRecordedAudioInput(byte[] input) {
+		recordedAudio.setRecordedAudioInput(true);
+		for (byte b : input) {
+			recordedInputBuffer.add(b);
+		}
 	}
 
 	/*

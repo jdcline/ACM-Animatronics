@@ -35,6 +35,7 @@ public class MicrocontrollerConnection {
 	public void openPort() throws SerialPortException {
 		try {
 			port.openPort();
+			port.setParams(9600, 8, 1, 0);
 		} catch (SerialPortException e) {
 			throw new SerialPortException(null, null, null);
 		}
@@ -95,7 +96,7 @@ public class MicrocontrollerConnection {
 				e.printStackTrace();
 			}
 		else {
-			port.openPort();
+			this.openPort();
 			sendSingleCommand(command);
 		}
 

@@ -1,7 +1,7 @@
 /**
  * 
  */
-package showController;
+package jasc;
 
 import jmcc.MicrocontrollerConnection;
 

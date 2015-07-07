@@ -1,3 +1,8 @@
+import jasc.AnimatronicsShowPlayer;
+import jasc.AnimatronicsUtilities;
+import jasc.FormattedShowData;
+import jasc.PlayerInputs;
+
 import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -9,10 +14,6 @@ import javax.swing.JLabel;
 import javax.swing.JTextField;
 
 import jmcc.MicrocontrollerConnection;
-import showController.AnimatronicsShowPlayer;
-import showController.AnimatronicsUtilities;
-import showController.FormattedShowData;
-import showController.PlayerInputs;
 
 public class ShowPlayerUI extends JFrame implements ActionListener {
 
@@ -85,18 +86,43 @@ public class ShowPlayerUI extends JFrame implements ActionListener {
 
 	}
 
+	class RecordedInputSender implements Runnable {
+		byte pin;
+
+		public RecordedInputSender(byte b) {
+			pin = b;
+		}
+
+		public void run() {
+			boolean check = true;
+			for (int i = 0; i < 2000000 && check; i++) {
+				check = show.addRecordedServoInput(pin, new byte[] { (byte) i });
+				try {
+					Thread.sleep(33);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		// TODO Auto-generated method stub
 		String action = e.getActionCommand();
 
 		if (action.equals("PLAY")) {
-			int[] pins = { 2, 3 };
+			byte[] pins = { 3, 4 };
+			byte[] recordedPins = { 2 };
 			byte[][] motions;
 			try {
 				motions = AnimatronicsUtilities.readBytesMultipleServo(motionFile.getText(), 2);
 				message.setText("playing show..." + motions[0].length);
-				show.playShow(new FormattedShowData(audioFile.getText(), pins, motions));
+				show.playShow(new FormattedShowData(audioFile.getText(), pins, motions,
+						recordedPins, 5));
+
+				new Thread(new RecordedInputSender(recordedPins[0])).start();
 
 			} catch (FileNotFoundException e1) {
 				// TODO Auto-generated catch block

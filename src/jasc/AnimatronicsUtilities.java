@@ -1,4 +1,4 @@
-package showController;
+package jasc;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -64,6 +64,8 @@ public class AnimatronicsUtilities {
 				}
 			}
 		}
+
+		scanner.close();
 
 		// cast to primitive
 		byte[][] outputArray = new byte[numServos][outerList.get(0).size()];

@@ -78,23 +78,14 @@ public class MicrocontrollerConnection {
 
 	// Routines for one at a time commands
 	public void setTarget(byte pin, byte position) throws SerialPortException {
-		// Prepare bytes for this command
 		byte[] command = microcontroller.buildSetTargetCommand((byte) pin, (byte) position);
 		sendSingleCommand(command);
-		// return status to user
 
 	}
 
 	private void sendSingleCommand(byte[] command) throws SerialPortException {
 		if (port.isOpened())
-			try {
-				// System.out.println("Command serial: " + command[0] + " " + command[1] + " "
-				// + command[2]);
-				port.writeBytes(command);
-			} catch (SerialPortException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			port.writeBytes(command);
 		else {
 			this.openPort();
 			sendSingleCommand(command);
@@ -102,27 +93,8 @@ public class MicrocontrollerConnection {
 
 	}
 
-	/*
-	 * private void connectAndSendSingleCommand(byte[] command) {
-	 * try {
-	 * this.openPort();
-	 * } catch (SerialPortException e1) {
-	 * // TODO Auto-generated catch block
-	 * e1.printStackTrace();
-	 * }
-	 * try {
-	 * port.writeBytes(command);
-	 * } catch (SerialPortException e) {
-	 * e.printStackTrace();
-	 * }
-	 * try {
-	 * this.closePort();
-	 * } catch (SerialPortException e) {
-	 * // TODO Auto-generated catch block
-	 * e.printStackTrace();
-	 * }
-	 * 
-	 * }
-	 */
+	public void setShowConfiguration(String cardType) {
+		// TODO fill in method
+	}
 
 }

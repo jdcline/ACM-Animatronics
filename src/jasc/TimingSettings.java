@@ -1,4 +1,4 @@
-package showController;
+package jasc;
 
 public class TimingSettings {
 
@@ -12,6 +12,7 @@ public class TimingSettings {
 
 	private int servoFramesPerCycle;
 	private int audioBytesPerCycle;
+	private int servoLag = 5;
 
 	public TimingSettings(int servoFramesPerSecond, int cyclesPerSecond) {
 		this.servoFramesPerSecond = servoFramesPerSecond;
@@ -89,6 +90,18 @@ public class TimingSettings {
 	 */
 	public int getAudioBytesPerCycle() {
 		return audioBytesPerCycle;
+	}
+
+	public int getServoLag() {
+		return servoLag;
+	}
+
+	/**
+	 * @param servoLag
+	 *            the servoLag to set
+	 */
+	public void setServoLag(int servoLag) {
+		this.servoLag = servoLag;
 	}
 
 }

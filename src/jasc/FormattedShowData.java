@@ -1,7 +1,7 @@
 /**
  * 
  */
-package showController;
+package jasc;
 
 /**
  * @author Jared
@@ -10,14 +10,25 @@ package showController;
 public class FormattedShowData {
 
 	private String audioFile;
-	private int[] pinNumbers;
+	private byte[] pinNumbers;
 	private byte[][] servoMotions;
+	private int servoLag;
+	private byte[] recordedPinNumbers;
 
-	public FormattedShowData(String audioFile, int[] pinNumbers, byte[][] servoMotions)
-			throws Exception {
+	/**
+	 * @param audioFile
+	 * @param pinNumbers
+	 *            first pin number is recorded servo pin -- -1 if not needed
+	 * @param servoMotions
+	 * @throws Exception
+	 */
+	public FormattedShowData(String audioFile, byte[] pinNumbers, byte[][] servoMotions,
+			byte[] recordedPinNumbers, int servoLag) throws Exception {
 		this.audioFile = audioFile;
 		this.pinNumbers = pinNumbers;
 		this.servoMotions = servoMotions;
+		this.servoLag = servoLag;
+		this.recordedPinNumbers = recordedPinNumbers;
 
 		checkData();
 	}
@@ -25,6 +36,9 @@ public class FormattedShowData {
 	private void checkData() throws Exception {
 		if (pinNumbers.length != servoMotions.length)
 			throw new Exception("Motions not found for every servo");
+
+		if (servoLag < 0)
+			throw new Exception("Servo lag cannot be negative.");
 
 		for (int i = 0; i < servoMotions.length; i++) {
 			if (servoMotions[i].length != servoMotions[0].length)
@@ -53,7 +67,7 @@ public class FormattedShowData {
 	/**
 	 * @return the pinNumbers
 	 */
-	public int[] getPinNumbers() {
+	public byte[] getPinNumbers() {
 		return pinNumbers;
 	}
 
@@ -62,5 +76,19 @@ public class FormattedShowData {
 	 */
 	public byte[][] getServoMotions() {
 		return servoMotions;
+	}
+
+	/**
+	 * @return the servoLag
+	 */
+	public int getServoLag() {
+		return servoLag;
+	}
+
+	/**
+	 * @return the recordedPinNumbers
+	 */
+	public byte[] getRecordedPinNumbers() {
+		return recordedPinNumbers;
 	}
 }

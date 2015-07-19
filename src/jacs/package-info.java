@@ -1,8 +1,0 @@
-/**
- * 
- */
-/**
- * @author Jared
- *
- */
-package jacs;

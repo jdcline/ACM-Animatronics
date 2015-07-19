@@ -1,8 +1,8 @@
 package jacs_alford;
 
-import jacs.AnimatronicsUtilities;
-
 import java.util.ArrayList;
+
+import jacs_utilities.AnimatronicsUtilities;
 
 public class ServoShowComponent extends ShowComponent {
 

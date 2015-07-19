@@ -3,9 +3,9 @@
  */
 package jacs_alford;
 
-import jacs.FormattedShowData;
-
 import java.util.ArrayList;
+
+import jacs_player.FormattedShowData;
 
 /**
  * @author galford

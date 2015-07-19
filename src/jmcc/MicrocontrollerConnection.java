@@ -32,6 +32,11 @@ public class MicrocontrollerConnection {
 		this.port = new SerialPort(portName);
 	}
 
+	public MicrocontrollerConnection(String portName) {
+		microcontroller = new MicroMaestro();
+		this.port = new SerialPort(portName);
+	}
+
 	public void openPort() throws SerialPortException {
 		try {
 			port.openPort();

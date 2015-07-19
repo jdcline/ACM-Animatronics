@@ -1,7 +1,7 @@
 /**
  * 
  */
-package jasc;
+package jacs;
 
 /**
  * @author Jared

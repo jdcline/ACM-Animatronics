@@ -1,7 +1,4 @@
-import jasc.AnimatronicsShowPlayer;
-import jasc.AnimatronicsUtilities;
-import jasc.FormattedShowData;
-import jasc.PlayerInputs;
+package tester;
 
 import java.awt.Component;
 import java.awt.FlowLayout;
@@ -17,9 +14,13 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JTextField;
 
+import jacs.AnimatronicsShowPlayer;
+import jacs.AnimatronicsUtilities;
+import jacs.FormattedShowData;
+import jacs.PlayerInputs;
 import jmcc.MicrocontrollerConnection;
 
-public class MacTesterUI extends JFrame implements ActionListener {
+public class TesterUI extends JFrame implements ActionListener {
 
 	/**
 	 * 
@@ -51,7 +52,7 @@ public class MacTesterUI extends JFrame implements ActionListener {
 
 	ArrayList<JComponent> contentArray = new ArrayList<JComponent>();
 
-	MacTesterUI(AnimatronicsShowPlayer player) {
+	TesterUI(AnimatronicsShowPlayer player) {
 
 		this.show = player;
 
@@ -81,6 +82,7 @@ public class MacTesterUI extends JFrame implements ActionListener {
 			pin = b;
 		}
 
+		@Override
 		public void run() {
 			boolean check = true;
 			for (int i = 0; i < 2000000 && check; i++) {
@@ -106,42 +108,43 @@ public class MacTesterUI extends JFrame implements ActionListener {
 			byte[] recordedPins;
 			try {
 				switch ((String) testSelector.getSelectedItem()) {
-				case "3 motors (one recorded input)":
-					pins = new byte[] { 2, 3 };
-					recordedPins = new byte[] { 4 };
-					motions = AnimatronicsUtilities.readBytesMultipleServo(motionFile.getText(), 2);
-					message.setText("playing show..." + motions[0].length);
-					show.playShow(new FormattedShowData(audioFile.getText(), pins, motions,
-							recordedPins, Integer.parseInt(servoLagField.getText())));
+					case "3 motors (one recorded input)":
+						pins = new byte[] { 2 };
+						recordedPins = new byte[] { 3, 4 };
+						motions = AnimatronicsUtilities.readBytesMultipleServo(motionFile.getText(), 1);
+						message.setText("playing show..." + motions[0].length);
+						show.playShow(new FormattedShowData(audioFile.getText(), pins, motions, recordedPins,
+								Integer.parseInt(servoLagField.getText())));
 
-					new Thread(new RecordedInputSender(recordedPins[0])).start();
-					break;
+						new Thread(new RecordedInputSender(recordedPins[0])).start();
+						new Thread(new RecordedInputSender(recordedPins[1])).start();
+						break;
 
-				case "3 motors":
-					pins = new byte[] { 2, 3, 4 };
-					recordedPins = new byte[] {};
-					motions = AnimatronicsUtilities.readBytesMultipleServo(motionFile.getText(), 3);
-					message.setText("playing show..." + motions[0].length);
-					show.playShow(new FormattedShowData(audioFile.getText(), pins, motions,
-							recordedPins, Integer.parseInt(servoLagField.getText())));
-					break;
+					case "3 motors":
+						pins = new byte[] { 2, 3, 4 };
+						recordedPins = new byte[] {};
+						motions = AnimatronicsUtilities.readBytesMultipleServo(motionFile.getText(), 3);
+						message.setText("playing show..." + motions[0].length);
+						show.playShow(new FormattedShowData(audioFile.getText(), pins, motions, recordedPins,
+								Integer.parseInt(servoLagField.getText())));
+						break;
 
-				case "2 motors":
-					pins = new byte[] { 2, 3 };
-					recordedPins = new byte[] {};
-					motions = AnimatronicsUtilities.readBytesMultipleServo(motionFile.getText(), 2);
-					message.setText("playing show..." + motions[0].length);
-					show.playShow(new FormattedShowData(audioFile.getText(), pins, motions,
-							recordedPins, Integer.parseInt(servoLagField.getText())));
-					break;
+					case "2 motors":
+						pins = new byte[] { 2, 3 };
+						recordedPins = new byte[] {};
+						motions = AnimatronicsUtilities.readBytesMultipleServo(motionFile.getText(), 2);
+						message.setText("playing show..." + motions[0].length);
+						show.playShow(new FormattedShowData(audioFile.getText(), pins, motions, recordedPins,
+								Integer.parseInt(servoLagField.getText())));
+						break;
 
-				case "1 motor":
-					pins = new byte[] { 2 };
-					recordedPins = new byte[] {};
-					motions = AnimatronicsUtilities.readBytesMultipleServo(motionFile.getText(), 1);
-					message.setText("playing show..." + motions[0].length);
-					show.playShow(new FormattedShowData(audioFile.getText(), pins, motions,
-							recordedPins, Integer.parseInt(servoLagField.getText())));
+					case "1 motor":
+						pins = new byte[] { 2 };
+						recordedPins = new byte[] {};
+						motions = AnimatronicsUtilities.readBytesMultipleServo(motionFile.getText(), 1);
+						message.setText("playing show..." + motions[0].length);
+						show.playShow(new FormattedShowData(audioFile.getText(), pins, motions, recordedPins,
+								Integer.parseInt(servoLagField.getText())));
 				}
 
 			} catch (FileNotFoundException e1) {
@@ -185,11 +188,12 @@ public class MacTesterUI extends JFrame implements ActionListener {
 
 	public static void main(String args[]) {
 		try {
-			MicrocontrollerConnection mc = new MicrocontrollerConnection();
+			MicroconnectionCreator creator = new MicroconnectionCreator();
+			MicrocontrollerConnection mc = creator.getMC();
 			PlayerInputs inputs = new PlayerInputs(mc, 30, 30);
 			AnimatronicsShowPlayer player;
 			player = new AnimatronicsShowPlayer(inputs);
-			new MacTesterUI(player);
+			new TesterUI(player);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -215,25 +219,25 @@ public class MacTesterUI extends JFrame implements ActionListener {
 		motionFile.setEnabled(false);
 
 		switch (testOption) {
-		case "3 motors (one recorded input)":
-			audioFile.setText("data/AlpacaOESISDemo.wav");
-			motionFile.setText("data/AlpacaOESISDemo2motor.csv");
-			break;
+			case "3 motors (one recorded input)":
+				audioFile.setText("data/AlpacaOESISDemo.wav");
+				motionFile.setText("data/AlpacaOESISDemo1motor.csv");
+				break;
 
-		case "3 motors":
-			audioFile.setText("data/AlpacaOESISDemo.wav");
-			motionFile.setText("data/AlpacaOESISDemo.csv");
-			break;
+			case "3 motors":
+				audioFile.setText("data/AlpacaOESISDemo.wav");
+				motionFile.setText("data/AlpacaOESISDemo.csv");
+				break;
 
-		case "2 motors":
-			audioFile.setText("data/AlpacaOESISDemo.wav");
-			motionFile.setText("data/AlpacaOESISDemo2motor.csv");
-			break;
+			case "2 motors":
+				audioFile.setText("data/AlpacaOESISDemo.wav");
+				motionFile.setText("data/AlpacaOESISDemo2motor.csv");
+				break;
 
-		case "1 motor":
-			audioFile.setText("data/AlpacaOESISDemo.wav");
-			motionFile.setText("data/AlpacaOESISDemo1motor.csv");
-			break;
+			case "1 motor":
+				audioFile.setText("data/AlpacaOESISDemo.wav");
+				motionFile.setText("data/AlpacaOESISDemo1motor.csv");
+				break;
 		}
 
 		servoLagField = new JTextField(2);
@@ -287,6 +291,7 @@ public class MacTesterUI extends JFrame implements ActionListener {
 
 	}
 
+	@Override
 	public Component add(Component j) {
 		super.add(j);
 		contentArray.add((JComponent) j);

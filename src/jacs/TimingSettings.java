@@ -1,4 +1,4 @@
-package jasc;
+package jacs;
 
 public class TimingSettings {
 

@@ -1,4 +1,4 @@
-package jasc;
+package jacs;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -37,8 +37,7 @@ public class AnimatronicsUtilities {
 	 * @return a 2D array of motions, one array per motor
 	 * @throws FileNotFoundException
 	 */
-	public static byte[][] readBytesMultipleServo(String fileName, int numServos)
-			throws FileNotFoundException {
+	public static byte[][] readBytesMultipleServo(String fileName, int numServos) throws FileNotFoundException {
 
 		File inputFile = new File(fileName);
 		Scanner scanner = new Scanner(inputFile);
@@ -71,7 +70,7 @@ public class AnimatronicsUtilities {
 		byte[][] outputArray = new byte[numServos][outerList.get(0).size()];
 		for (int i = 0; i < numServos; i++) {
 			for (int j = 0; j < outerList.get(0).size(); j++) {
-				outputArray[i][j] = (byte) outerList.get(i).get(j);
+				outputArray[i][j] = outerList.get(i).get(j);
 			}
 		}
 
@@ -86,14 +85,14 @@ public class AnimatronicsUtilities {
 	public static byte[] shortArrayListToByteArray(ArrayList<Short> shortArrayList) {
 		byte[] temp = new byte[shortArrayList.size()];
 		for (int i = 0; i < temp.length; i++)
-			temp[i] = (byte) shortArrayList.get(i).byteValue();
+			temp[i] = shortArrayList.get(i).byteValue();
 		return temp;
 	}
 
 	public static byte[] byteArrayListToByteArray(ArrayList<Byte> indata) {
 		byte[] temp = new byte[indata.size()];
 		for (int i = 0; i < temp.length; i++)
-			temp[i] = (byte) indata.get(i).byteValue();
+			temp[i] = indata.get(i).byteValue();
 		return temp;
 	}
 
@@ -101,6 +100,15 @@ public class AnimatronicsUtilities {
 		ArrayList<Short> temp = new ArrayList<Short>();
 		for (int i = 0; i < byteArray.length; i = i + 1000) {
 			temp.add((short) byteArray[i]);
+		}
+
+		return temp;
+	}
+
+	public static ArrayList<Byte> byteArrayToByteArrayList(byte[] byteArray) {
+		ArrayList<Byte> temp = new ArrayList<Byte>();
+		for (int i = 0; i < byteArray.length; i = i + 1000) {
+			temp.add(byteArray[i]);
 		}
 
 		return temp;

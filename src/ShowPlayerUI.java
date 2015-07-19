@@ -1,7 +1,7 @@
-import jasc.AnimatronicsShowPlayer;
-import jasc.AnimatronicsUtilities;
-import jasc.FormattedShowData;
-import jasc.PlayerInputs;
+import jacs.AnimatronicsShowPlayer;
+import jacs.AnimatronicsUtilities;
+import jacs.FormattedShowData;
+import jacs.PlayerInputs;
 
 import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;

@@ -22,8 +22,9 @@ import jssc.SerialPortException;
 
 /**
  * Player for an animatronics show. Allows a user to play an audio file
- * synchronized to Servo motor motions, a real-time audio feed, and a real time
- * servo feed. An unlimited number of servo motors are supported.
+ * synchronized to Servo motor motions (including specified starting and ending
+ * points), a real-time audio feed, and a real time servo feed. An unlimited
+ * number of servo motors are supported.
  * 
  * @author Jared Cline
  */

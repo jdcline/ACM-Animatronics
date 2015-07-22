@@ -22,12 +22,18 @@ public class FormattedShowData {
 	 * {@linkplain AnimatronicsShowPlayer}
 	 * 
 	 * @param audioFile
-	 *            the path to the audio file. "" denotes no audio file
+	 *            the path to the audio file. "" denotes no audio file.<br>
+	 *            Audio files must be a stereo .wav file (44100 Hz, 2 channels,
+	 *            16 bits per channel).
 	 * @param pinNumbers
 	 *            the pin numbers for the servos controlled via the pre-loaded
 	 *            motions
 	 * @param servoMotions
-	 *            the pre-loaded motions for the servos
+	 *            the pre-loaded motions for the servos.<br>
+	 *            Preloaded motions must come in a 2-dimensional array (one
+	 *            array per motor) at 30 frames (bytes) per second. Each motion
+	 *            byte must be a number from 0 to 254, representing a scaled
+	 *            version of the absolute angle of the servo motor.
 	 * @param recordedPinNumbers
 	 *            the pin numbers for the servos whose motions are coming in
 	 *            from a real-time recording device. If no recorded servos are

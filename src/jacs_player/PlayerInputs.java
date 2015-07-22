@@ -25,10 +25,13 @@ public class PlayerInputs {
 	 * @param mc
 	 *            a {@link jmcc.MicrocontrollerConnection}
 	 * @param servoFramesPerSecond
-	 *            recommended 30fps, cannot be 0
+	 *            recommended 30fps, cannot be 0. This is how many motions each
+	 *            servo motor has per second of playback.
 	 * @param cyclesPerSecond
 	 *            Can't be 0 and must be > servoFramesPerSecond and >
-	 *            audioBytesPerSecond (176400)
+	 *            audioBytesPerSecond (176400). This is how many synchronization
+	 *            points there are per second. Recommended number is the same as
+	 *            the servoFramesPerSecond.
 	 * @throws Exception
 	 */
 	public PlayerInputs(MicrocontrollerConnection mc, int servoFramesPerSecond, int cyclesPerSecond) throws Exception {

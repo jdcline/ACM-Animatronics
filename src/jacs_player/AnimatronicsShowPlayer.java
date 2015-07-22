@@ -24,14 +24,31 @@ import jssc.SerialPortException;
  * Player for an animatronics show. Allows a user to play an audio file
  * synchronized to Servo motor motions (including specified starting and ending
  * points), a real-time audio feed, and a real time servo feed. An unlimited
- * number of servo motors are supported.
+ * number of servo motors are supported.<br>
+ * <br>
+ * 
+ * File input (pre-set motor motions and pre-created audio file) are sent in
+ * through an instance of {@link FormattedShowInput}, and real-time audio and
+ * servo inputs are sent in through the
+ * {@link AnimatronicsShowPlayer#addRecordedAudioInput(byte[])
+ * addRecordedAudioInput(byte[])} and
+ * {@link AnimatronicsShowPlayer#addRecordedServoInput(byte, byte[])
+ * addRecordedServoInput(byte, byte[])} methods, respectively.<br>
+ * <br>
+ * 
+ * <b>Troubleshooting:</b> Note that the servo lag is the lag per motor, so as
+ * you add motors, decrease the lag. The basic issue the lag addresses is cutoff
+ * of servo motions, so the idea is to have it as high as possible while
+ * maintaining the quality of audio playback. Thus, set the lag as high as
+ * possible without creating holes in the audio playback. Recommended settings
+ * are ~14ms for 2 motors, and decrease from there.
  * 
  * @author Jared Cline
  */
 public class AnimatronicsShowPlayer {
 	/**
 	 * A number denoting the maximum show length in frames. Set to
-	 * {@linkplain Integer#MAX_VALUE} / 3
+	 * {@link Integer#MAX_VALUE} / 3
 	 */
 	public static final int MAX_SHOW_LENGTH = Integer.MAX_VALUE / 3;
 
@@ -668,7 +685,7 @@ public class AnimatronicsShowPlayer {
 	 * for immediate playback. Show input must come in at 44,100 Hz, stereo
 	 * audio at 16 bits per channel, signed and in big endian format. <br>
 	 * <BLOCKQUOTE>Use the format:
-	 * <code>AudioFormat format = new AudioFormat(44100, 16, 2, true, true);</code>
+	 * <code>{@link javax.sound.sampled.AudioFormat AudioFormat} format = new {@link javax.sound.sampled.AudioFormat AudioFormat}(44100, 16, 2, true, true);</code>
 	 * </BLOCKQUOTE>
 	 * 
 	 * @param input
@@ -694,7 +711,12 @@ public class AnimatronicsShowPlayer {
 	/**
 	 * Adds the given servo input for the given pin to the servo output stream
 	 * for immediate playback. Show input must come in at the same rate as the
-	 * servo frames per second in the {@link PlayerInputs}
+	 * servo frames per second in the {@link PlayerInputs}. I.e. for each
+	 * recorded motor, the same number of motions (bytes) must come in per
+	 * second as the show settings.
+	 * 
+	 * Input is processed immediately (not throttled out), so send input in
+	 * evenly.
 	 * 
 	 * @param input
 	 *            the bytes to be added to the servo output stream
